@@ -9,6 +9,7 @@ from typing import AsyncGenerator, Generator, Tuple
 import httpx
 import requests
 from PIL import Image
+import json
 
 async_client = httpx.AsyncClient()
 
@@ -30,12 +31,24 @@ class Tile:
     image: Image.Image
 
 
-def get_width_and_height_from_zoom(zoom: int) -> Tuple[int, int]:
+def get_width_and_height_from_zoom(pano_id, zoom: int) -> Tuple[int, int]:
     """
     Returns the width and height of a panorama at a given zoom level, depends on the
     zoom level.
     """
-    return 2**zoom, 2 ** (zoom - 1)
+    photometa_document = json.loads(
+    requests.get(
+        url="https://www.google.com/maps/photometa/v1?authuser=0&hl=en&gl=us&pb=!1m4!1smaps_sv.tactile!11m2!2m1!1b1!2m2!1sen!2sus!3m3!1m2!1e2!2s%s!4m57!1e1!1e2!1e3!1e4!1e5!1e6!1e8!1e12!2m1!1e1!4m1!1i48!5m1!1e1!5m1!1e2!6m1!1e1!6m1!1e2!9m36!1m3!1e2!2b1!3e2!1m3!1e2!2b0!3e3!1m3!1e3!2b1!3e2!1m3!1e3!2b0!3e3!1m3!1e8!2b0!3e3!1m3!1e1!2b0!3e3!1m3!1e4!2b0!3e3!1m3!1e10!2b1!3e2!1m3!1e10!2b0!3e3"
+        % (pano_id)
+    ).text[4:]
+    )
+
+    width = int(photometa_document[1][0][2][2][0] / pow(2, 4 - zoom))
+    height = int(photometa_document[1][0][2][2][0] / pow(2, 5 - zoom))
+
+
+
+    return width/512, height/512
 
 
 def make_download_url(pano_id: str, zoom: int, x: int, y: int) -> str:
@@ -86,7 +99,7 @@ def iter_tile_info(pano_id: str, zoom: int) -> Generator[TileInfo, None, None]:
     """
     Generate a list of a panorama's tiles and their position.
     """
-    width, height = get_width_and_height_from_zoom(zoom)
+    width, height = get_width_and_height_from_zoom(pano_id, zoom)
     for x, y in itertools.product(range(width), range(height)):
         yield TileInfo(
             x=x,
@@ -146,7 +159,7 @@ def get_panorama(
     tile_width = 512
     tile_height = 512
 
-    total_width, total_height = get_width_and_height_from_zoom(zoom)
+    total_width, total_height = get_width_and_height_from_zoom(pano_id, zoom)
     panorama = Image.new("RGB", (total_width * tile_width, total_height * tile_height))
 
     for tile in iter_tiles(
@@ -171,7 +184,7 @@ async def get_panorama_async(
     tile_width = 512
     tile_height = 512
 
-    total_width, total_height = get_width_and_height_from_zoom(zoom)
+    total_width, total_height = get_width_and_height_from_zoom(pano_id, zoom)
     panorama = Image.new("RGB", (total_width * tile_width, total_height * tile_height))
 
     async for tile in iter_tiles_async(
