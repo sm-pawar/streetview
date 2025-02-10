@@ -16,6 +16,9 @@ class Panorama(BaseModel):
     roll: Optional[float]
     date: Optional[str]
     elevation: Optional[float]
+    max_zoom: Optional[int]
+    max_width: Optional[int]
+    max_height: Optional[int]
 
 
 def make_search_url(lat: float, lon: float) -> str:
